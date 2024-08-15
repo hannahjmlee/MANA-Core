@@ -9,7 +9,7 @@ chmod +x init.sh
 This will load all of the map and scenario files necessary for running
 experiments. Then, to build the library, run:
 ```
-chmod + x build.sh
+chmod +x build.sh
 ./build.sh
 ```
 
