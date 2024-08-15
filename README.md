@@ -1,6 +1,6 @@
-# Multi-Agent Navigation Algorithms
+# Multi-Agent Navigation Algorithms Core 
 
-This is Hannah's Multi-Agent Navigation Algorithm (MANA) library. This is a C++ library with code developed for testing and performing experiments. For my development library in python, please see MANA-Labs. To start,
+This is Hannah's Multi-Agent Navigation Algorithm (MANA) Core library. This is a C++ library with code developed for testing and performing experiments. For my development library in Python, please see MANA-Labs. To start,
 begin by running:
 ```
 chmod +x init.sh
