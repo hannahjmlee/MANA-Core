@@ -29,34 +29,37 @@ CentralizedSolver::
 CreatePathfinder(std::string _lowlevel) {
     // Create pathfinder object
     if (_lowlevel == "AStar"){
-        m_lowlevel = new AStar(m_problem->GetGrid(), m_debug);
+        m_lowlevel = new AStar(m_problem, m_debug);
     } else if (_lowlevel == "Dijkstra") {
-        m_lowlevel = new Dijkstra(m_problem->GetGrid(), m_debug);
+        m_lowlevel = new Dijkstra(m_problem, m_debug);
     }
 }
 
 void
 CentralizedSolver::
 CreateMAPF(std::string _mapf) {
-    // Create low-level search functor
-    LowLevelFunction llSolve = [this](const Coord& _start, const Coord& _goal,
-                                const std::set<MotionConstraint>& _constraints,
-                                size_t _minend) {
-        return this->m_lowlevel->Solve(_start, _goal, _constraints, _minend);
-    };
-
     // Create multi-agent pathfinding object
     if (_mapf == "CBS" || _mapf == "cbs") {
-        m_mapf = new CBS(llSolve, m_costMetric, m_debug);
+        // Create low-level search functor
+        CBSLowLevelFunction llSolve = [this](const Coord& _start, const Coord& _goal,
+                                    const std::vector<MotionConstraint>& _constraints,
+                                    size_t _minend) {
+            return this->m_lowlevel->Solve(_start, _goal, _constraints, _minend);
+        };
+        m_mapf = new CBS(llSolve, m_costMetric, m_problem->m_resolution, m_debug);
     } else if (_mapf == "PBS" || _mapf == "pbs") {
-        m_mapf = new PBS(llSolve, m_costMetric, m_debug);
-    } else if (_mapf == "HCCBS" || _mapf == "hccbs") {
-        m_mapf = new HCCBS(llSolve, m_costMetric, m_heuristic, m_debug);
+        // Create low-level search functor
+        PBSLowLevelFunction llSolve = [this](const Coord& _start, const Coord& _goal,
+                                    const std::vector<SpatialMotionConstraint>& _constraints,
+                                    size_t _minend) {
+            return this->m_lowlevel->Solve(_start, _goal, _constraints, _minend);
+        };
+        m_mapf = new PBS(llSolve, m_costMetric, m_problem->m_resolution, m_debug);
     }
 }
 
 
-std::tuple<bool, size_t, CentralizedSolver::SolutionMap, double>
+std::tuple<bool, double, CentralizedSolver::SolutionMap, double>
 CentralizedSolver::
 Solve (size_t _problemSize){
     // clear and set internal variables
@@ -87,4 +90,10 @@ CentralizedSolver::
 GetWorkAnalysis() const{
     // returns search space size and state space size
     return {m_solution->GetSearchSize(), m_solution->GetSpaceSize()};
+}
+
+MultiPathSolution*
+CentralizedSolver::
+GetSolution() const {
+    return m_solution;
 }

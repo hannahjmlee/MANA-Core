@@ -9,12 +9,12 @@
 void TestOptimalPathfinders(std::string _filename, size_t _scenario, bool _debug = false) {
     // compares Dijkstra and AStar Solutions
 
-    Problem problemInstance = Problem(_filename, _scenario); 
-    auto grid = problemInstance.GetGrid(); 
+    Problem* problemInstance = new Problem(_filename, _scenario); 
+    auto grid = problemInstance->GetGrid(); 
     std::cout << "Testing Optimal Pathfinders..." << std::endl; 
 
     // get eleventh motion task from a map and scenario
-    auto task = problemInstance.GetTasks()[10]; 
+    auto task = problemInstance->GetTasks()[10]; 
     auto start = task.first; 
     auto goal = task.second; 
     std::cout << "\tMotion Task:"; 
@@ -22,11 +22,11 @@ void TestOptimalPathfinders(std::string _filename, size_t _scenario, bool _debug
     std::cout << "(" << goal.first << ", " << goal.second << ")" << std::endl; 
 
     // Create A* and Dijkstra objects
-    AStar astar(grid, _debug); 
-    Dijkstra dijkstra(grid, _debug); 
+    AStar astar(problemInstance, _debug); 
+    Dijkstra dijkstra(problemInstance, _debug); 
 
     // No constraints are applied to the search
-    std::set<MotionConstraint> constraints; 
+    std::vector<MotionConstraint> constraints; 
     
     // Solve the motion query
     auto [successD, dijkstraPath] = dijkstra.Solve(start, goal, constraints, 0); 
@@ -53,4 +53,6 @@ void TestOptimalPathfinders(std::string _filename, size_t _scenario, bool _debug
         std::cout << "\tDijkstra and A* returned the optimal solution: " << astarPath.size() - 1 << std::endl; 
     }
     std::cout << std::endl; 
+
+    delete problemInstance; 
 }

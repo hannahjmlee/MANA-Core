@@ -5,112 +5,117 @@
 #include "utils/DistanceMetrics.h"
 
 #include <algorithm>
-#include <memory> 
+#include <memory>
 #include <queue>
 
 /*
-This is an implementation for time-extended AStar assuming a 4-neighbor movement model. 
+This is an implementation for time-extended AStar assuming a 4-neighbor movement model.
 The heuristic used the manhattan distance. The search is performed over nodes that capture
-both position and time. 
+both position and time.
 */
 
 
 class AStarNode {
+
     public:
 
-        using Coord = std::pair<size_t, size_t>;    // alias for a coordinate pair (x, y) 
+        using Coord = std::pair<double, double>;    // alias for a coordinate pair (x, y)
 
-    public: 
+    public:
 
-        Coord  m_vertex; // vertex 
-        size_t m_g;      // path cost value
-        size_t m_h;      // heuristic cost value
+        Coord  m_vertex; // vertex
+        double m_g;      // path cost value
+        double m_h;      // heuristic cost value
 
-    public: 
-    
+    public:
+
         // Default constructor
-        AStarNode() : m_vertex{std::make_pair(0, 0)}, m_g(0.0), m_h(0.0) {}; 
+        AStarNode() : m_vertex{std::make_pair(0, 0)}, m_g(0.0), m_h(0.0) {};
 
         // Constructor
-        AStarNode(Coord _vertex, size_t _g, size_t _h) :
-            m_vertex(_vertex), 
-            m_g(_g), 
-            m_h(_h) {}; 
+        AStarNode(Coord _vertex, double _g, double _h) :
+            m_vertex(_vertex),
+            m_g(_g),
+            m_h(_h) {};
 
         // Less-than operator
         bool operator<(const AStarNode& _other) const {
-            if (m_vertex < _other.m_vertex) 
-                return true; 
-            if (m_vertex > _other.m_vertex) 
-                return false; 
+            if (m_vertex < _other.m_vertex)
+                return true;
+            if (m_vertex > _other.m_vertex)
+                return false;
 
-            return m_g < _other.m_g; 
-        }; 
+            return m_g < _other.m_g;
+        };
 
         // Greater-than operator
         bool operator>(const AStarNode& _other) const {
-            size_t f1 = m_g + m_h;
-            size_t f2 = _other.m_g + _other.m_h;
+            double f1 = m_g + m_h;
+            double f2 = _other.m_g + _other.m_h;
             if (f1 == f2) {
                 return m_g < _other.m_g;
             }
             return f1 > f2;
-        }; 
+        };
 
         // Equality operator
         bool operator==(const AStarNode& _other) const {
-            return m_vertex == _other.m_vertex && m_g == _other.m_g; 
-        }; 
+            return m_vertex == _other.m_vertex && m_g == _other.m_g;
+        };
 
         friend std::ostream& operator<<(std::ostream& _os, const AStarNode& _obj) {
-            _os << "Node: (" << _obj.m_vertex.first << ", " << _obj.m_vertex.second << "), ["; 
-            _os << _obj.m_g << ", " << _obj.m_h << "]"; 
+            _os << "Node: (" << _obj.m_vertex.first << ", " << _obj.m_vertex.second << "), [";
+            _os << _obj.m_g << ", " << _obj.m_h << "]";
 
-            return _os; 
-        }; 
+            return _os;
+        };
 };
 
 
 class AStar : public Pathfinder {
 
-    private: 
+    private:
 
         std::string m_name = "AStar"; // name of the AStar instance
 
-    public: 
+    public:
 
         // Default constructor
-        AStar() : 
-            Pathfinder() {}; 
-        
+        AStar() :
+            Pathfinder() {};
+
         // Constructor with debug flag
-        AStar(bool _debug) : 
-            Pathfinder(_debug) {};  
+        AStar(bool _debug) :
+            Pathfinder(_debug) {};
 
         // Constructor with grid initialization
-        AStar(const std::vector<std::vector<bool>>& _grid) : 
-            Pathfinder(_grid) {};
+        AStar(Problem* _problem) :
+            Pathfinder(_problem) {};
 
         // Constructor with grid initialization and debug flag
-        AStar(const std::vector<std::vector<bool>>& _grid, bool _debug) : 
-            Pathfinder(_grid, _debug) {};
+        AStar(Problem* _problem, bool _debug) :
+            Pathfinder(_problem, _debug) {};
 
         // Constructor with predefined neighbors map and optional debug flag
-        AStar(const std::map<Coord, std::vector<Coord>*> _neighbors, bool _debug = false) : 
-            Pathfinder(_neighbors, _debug) {}; 
+        AStar(const std::map<Coord, std::vector<Coord>*> _neighbors, bool _debug = false) :
+            Pathfinder(_neighbors, _debug) {};
 
         // Destructor
-        ~AStar() override = default; 
+        ~AStar() override = default;
 
         // Solve method for A* pathfinding
-        std::pair<bool, std::vector<Coord>> Solve(const Coord& _start, const Coord& _goal, 
-                                                   const std::set<MotionConstraint>& _constraints = std::set<MotionConstraint>(), 
-                                                   size_t _endtime = 0) const override;  
+        std::pair<bool, std::vector<Coord>> Solve(const Coord& _start, const Coord& _goal,
+                                                   const std::vector<MotionConstraint>& _constraints = std::vector<MotionConstraint>(),
+                                                   size_t _endtime = 0) const override;
 
-    protected: 
+        // Solve method for A* pathfinding
+        std::pair<bool, std::vector<Coord>> Solve(const Coord& _start, const Coord& _goal,
+                                                   const std::vector<SpatialMotionConstraint>& _constraints = std::vector<SpatialMotionConstraint>(),
+                                                   size_t _endtime = 0) const override;
+    protected:
 
         // Heuristic function for estimating cost from start to goal
-        virtual size_t Heuristic(const Coord& start, const Coord& goal) const; 
+        virtual double Heuristic(const Coord& start, const Coord& goal) const;
 
 };
 

@@ -15,25 +15,28 @@
 
 #include "planning/mapf/MAPF.h"
 #include "planning/mapf/CBS.h"
-#include "planning/mapf/HCCBS.h"
 #include "planning/mapf/PBS.h"
 
 #include "solutions/Multipath.h"
 #include "utils/MotionConstraint.h"
-
+#include "utils/SpatialMotionConstraint.h"
 
 class CentralizedSolver{
 
     public:
 
-        using Coord            = std::pair<size_t, size_t>;                       // alias for a coordinate pair (x, y)
+        using Coord            = std::pair<double, double>;                       // alias for a coordinate pair (x, y)
         using MotionTask       = std::pair<Coord, Coord>;                         // alias for a motion task consisting of a start and goal coordinate
         using SolutionMap      = std::map<size_t, std::vector<Coord>>;            // alias for a map that tracks agent index to its solution path
-        using LowLevelFunction = std::function<std::pair<bool, std::vector<Coord>>
+        using CBSLowLevelFunction = std::function<std::pair<bool, std::vector<Coord>>
                                             (const Coord&, const Coord&,
-                                            const std::set<MotionConstraint>&,
+                                            const std::vector<MotionConstraint>&,
                                             size_t)>;                              // alias for a functor for the low-level search function
 
+        using PBSLowLevelFunction = std::function<std::pair<bool, std::vector<Coord>>
+                                            (const Coord&, const Coord&,
+                                            const std::vector<SpatialMotionConstraint>&,
+                                            size_t)>;                              // alias for a functor for the low-level search function
     public:
 
         double m_runtime;                                                         // runtime of the centralized solver
@@ -85,7 +88,7 @@ class CentralizedSolver{
         void CreateMAPF(std::string _mapf);
 
         // Solve method for the centralized MAPF problem
-        std::tuple<bool, size_t, SolutionMap, double> Solve(size_t _problemSize);
+        std::tuple<bool, double, SolutionMap, double> Solve(size_t _problemSize);
 
         // Method to get the analysis of work done during the solve process
         std::pair<size_t, size_t> GetWorkAnalysis() const;
@@ -94,6 +97,8 @@ class CentralizedSolver{
         std::string GetName() const {
             return m_name;
         };
+
+        MultiPathSolution* GetSolution() const; 
 
 };
 

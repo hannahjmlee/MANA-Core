@@ -4,13 +4,13 @@
 #include <iostream> 
 
 void TestMultiAgentPathfinders(std::string _filename, size_t _scenario, size_t _problemSize,
-                               std::string _mapf, std::string _lowlevel, std::string _heuristic,
-                               bool _debug = false) {
+                               std::string _mapf, std::string _lowlevel, std::string _heuristic = "random",
+                               size_t _resolution = 1, bool _debug = false) {
     std::cout << "Solving scen"<< _scenario << "_" << _filename << " with " 
               << _problemSize << " agents using " << _mapf << "..." << std::endl; 
                 
     // create problem instance and solver
-    Problem* problemInstance = new Problem(_filename, _scenario); 
+    Problem* problemInstance = new Problem(_filename, _scenario, _resolution); 
     CentralizedSolver solver(problemInstance, _mapf, _lowlevel, "soc", _heuristic, _debug); 
 
     // solve problem instance
@@ -39,7 +39,27 @@ void TestMultiAgentPathfinders(std::string _filename, size_t _scenario, size_t _
         auto nodeCounts = solver.GetWorkAnalysis(); 
         std::cout << "\tExplored Nodes: " << nodeCounts.first << std::endl; 
         std::cout << "\tTotal Nodes: " << nodeCounts.second << std::endl; 
+
+        // solver.GetSolution()->PrintSolution(); 
+        // std::cout << std::endl << std::endl;
+
     }
     std::cout << std::endl; 
     delete problemInstance; 
+}
+
+void TestMultiAgentPathfinders(std::string _filename, size_t _scenario, size_t _problemSize,
+                               std::string _mapf, std::string _lowlevel, std::string _heuristic,
+                               bool _debug = false) {
+    TestMultiAgentPathfinders(_filename, _scenario, _problemSize, _mapf, _lowlevel, _heuristic, 1, _debug); 
+}
+
+void TestMultiAgentPathfinders(std::string _filename, size_t _scenario, size_t _problemSize,
+                               std::string _mapf, std::string _lowlevel, bool _debug = false) {
+    TestMultiAgentPathfinders(_filename, _scenario, _problemSize, _mapf, _lowlevel, "random", 1, _debug); 
+}
+
+void TestMultiAgentPathfinders(std::string _filename, size_t _scenario, size_t _problemSize,
+                               std::string _mapf, std::string _lowlevel, size_t _resolution, bool _debug = false) {
+    TestMultiAgentPathfinders(_filename, _scenario, _problemSize, _mapf, _lowlevel, "random", _resolution, _debug); 
 }

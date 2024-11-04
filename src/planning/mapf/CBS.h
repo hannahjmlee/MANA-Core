@@ -23,10 +23,10 @@ class CBS : public MAPF {
 
         using FullConstraint    = std::pair<size_t, MotionConstraint>;                              // alias for a full constraint that includes the agent ID and the motion constraint to be applied 
         using Node              = CTNode<MotionConstraint>;                                         // alias for a constraint tree node that uses motion constraints
-        using ConstraintMap     = std::map<size_t, std::set<MotionConstraint>>;                     // alias for a map that tracks agents and their applied motion constraints
+        using ConstraintMap     = std::map<size_t, std::vector<MotionConstraint>>;                     // alias for a map that tracks agents and their applied motion constraints
         using LowLevelFunction  = std::function<std::pair<bool, std::vector<Coord>>                             
                                                 (const Coord&, const Coord&, 
-                                                 const std::set<MotionConstraint>&, 
+                                                 const std::vector<MotionConstraint>&, 
                                                  size_t)>;                                          // alias for a functor for the low-level search function
 
         using ConstraintTree    = std::priority_queue<Node, std::vector<Node>, std::greater<Node>>; // alias for a constraint tree represented using a priority queue
@@ -50,6 +50,10 @@ class CBS : public MAPF {
         CBS(LowLevelFunction& _lowlevel, std::string _cost = "soc", bool _debug = false) : 
             m_lowlevel(_lowlevel), 
             MAPF(_cost, _debug) {}; 
+
+        CBS(LowLevelFunction& _lowlevel, std::string _cost = "soc", size_t _resolution = 1, bool _debug = false) : 
+            m_lowlevel(_lowlevel), 
+            MAPF(_cost, _resolution, _debug) {}; 
 
         // Resets the search parameters. 
         void Reset() override; 
@@ -95,7 +99,7 @@ class CBS : public MAPF {
                                   const std::vector<FullConstraint>& _constraints) const; 
 
         // Helper function that calculates the minimum end time for the low-level search based on the last applied motion constraint
-        size_t FindMinimumEndTime(size_t _agent, const std::set<MotionConstraint>& _constraints) const; 
+        size_t FindMinimumEndTime(size_t _agent, const std::vector<MotionConstraint>& _constraints) const; 
 };
 
 #endif // CBS_H

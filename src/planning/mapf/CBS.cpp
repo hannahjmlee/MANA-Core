@@ -77,7 +77,7 @@ Solve(const std::map<size_t, MotionTask>& _tasks, const std::vector<size_t>& _ag
     std::chrono::duration<double> time = end - start; 
 
     m_runtime = time.count(); 
-    m_solution = new MultiPathSolution(solutionNode.m_paths, solutionNode.m_cost, m_exploredCount, m_totalCount); 
+    m_solution = new MultiPathSolution(solutionNode.m_paths, solutionNode.m_cost, m_resolution, m_exploredCount, m_totalCount); 
 
     return m_solution;
 }
@@ -143,7 +143,7 @@ Initialize(const std::vector<size_t>& _agents) {
         for (auto agent : _agents) {
             Coord start = m_tasks[agent].first; 
             Coord goal = m_tasks[agent].second; 
-            std::set<MotionConstraint> empty; 
+            std::vector<MotionConstraint> empty; 
 
             auto [success, path] = m_lowlevel(start, goal, empty, 0); 
             if (!success) {
@@ -193,21 +193,21 @@ Validate(const Node& _node, const std::vector<size_t>& _agents) const{
                 const Coord& nextB = pathB.at(t2B); 
 
                 // find collision using traditional grid collision check
-                auto [collision, positions, times] = GridCollisionCheck(positionA, nextA, posB, nextB, t); 
+                auto [collision, constraintPositionA, constraintPositionB, times] = GridCollisionCheck(positionA, nextA, posB, nextB, t); 
                 if (!collision) 
                     continue; // if no collision is found, continue to the next collision check
                 
                 // create and return constraints based on the found collision
-                FullConstraint constraintOne = {agentA, MotionConstraint(positions, times)}; 
-                FullConstraint constraintTwo = {agentB, MotionConstraint(positions, times)}; 
+                FullConstraint constraintOne = {agentA, MotionConstraint(constraintPositionA, times)}; 
+                FullConstraint constraintTwo = {agentB, MotionConstraint(constraintPositionB, times)}; 
 
                 constraints.push_back(constraintOne); 
                 constraints.push_back(constraintTwo); 
 
                 if (m_debug) {
                     std::cout << "Collision found between Agent " << agentA << " and " << agentB << "." << std::endl; 
-                    std::cout << "Collision: {" << positions.first.first << ", " << positions.first.second << "}, {" << 
-                                 positions.second.first << ", " << positions.second.second << "}" << 
+                    std::cout << "Collision: {" << constraintPositionA.first.first << ", " << constraintPositionA.first.second << "}, {" << 
+                                 constraintPositionB.second.first << ", " << constraintPositionB.second.second << "}" << 
                                  " from time [" << times.first << ", " << times.second << "]" << std::endl; 
                     std::cout << "\tConstraint 1: {" << constraintOne.first << ", " << constraintOne.second << "}" << std::endl; 
                     std::cout << "\tConstraint 1: {" << constraintTwo.first << ", " << constraintTwo.second << "}" << std::endl; 
@@ -235,14 +235,15 @@ Split(const Node& _parent, const std::vector<FullConstraint>& _constraints) cons
 
     // safety check - make sure low level pathfinder is adhering to constraints by checking 
     // if any duplicate constraints have been added. 
-    if (_parent.m_constraints.at(agentA).find(constraintA) != _parent.m_constraints.at(agentA).end()) {
-        throw std::runtime_error("Duplicate constraint added to child A"); 
+    for (const auto& constraint : _parent.m_constraints.at(agentA)) {
+        if (constraint == constraintA) 
+            throw std::runtime_error("Duplicate constraint added to child A"); 
     }
 
     // try to create the first child node - if the low level pathfinder can't find a solution, 
     // the child is not created
     auto childA(_parent); 
-    childA.m_constraints[agentA].insert(constraintA);
+    childA.m_constraints[agentA].push_back(constraintA);
     size_t minEnd = FindMinimumEndTime(agentA, childA.m_constraints[agentA]); 
     auto [success, path] = m_lowlevel(m_tasks.at(agentA).first, m_tasks.at(agentA).second,
                                       childA.m_constraints[agentA], minEnd); 
@@ -254,13 +255,14 @@ Split(const Node& _parent, const std::vector<FullConstraint>& _constraints) cons
     }
 
     // same safety check as above, but for the second agent
-    if (_parent.m_constraints.at(agentB).find(constraintB) != _parent.m_constraints.at(agentB).end()) {
-        throw std::runtime_error("Duplicate constraint added to child B"); 
+    for (const auto& constraint : _parent.m_constraints.at(agentB)) {
+        if (constraint == constraintB)
+            throw std::runtime_error("Duplicate constraint added to child B"); 
     }
 
     // try to create the second child node
     auto childB(_parent); 
-    childB.m_constraints[agentB].insert(constraintB); 
+    childB.m_constraints[agentB].push_back(constraintB); 
     minEnd = FindMinimumEndTime(agentB, childB.m_constraints[agentB]); 
     auto [successB, pathB] = m_lowlevel(m_tasks.at(agentB).first, m_tasks.at(agentB).second, 
                                       childB.m_constraints[agentB], minEnd); 
@@ -276,14 +278,14 @@ Split(const Node& _parent, const std::vector<FullConstraint>& _constraints) cons
 
 size_t
 CBS:: 
-FindMinimumEndTime(size_t _agent, const std::set<MotionConstraint>& _constraints) const{
+FindMinimumEndTime(size_t _agent, const std::vector<MotionConstraint>& _constraints) const{
     // finds the minimum end time that is passed to the low level pathfinder based on the applied constraints
     size_t minTime = 0; 
     const Coord& goal = m_tasks.at(_agent).second; 
 
     for (const auto& constraint : _constraints) {
-        if (constraint.pos2 == goal) 
-            minTime = std::max(minTime, constraint.t2); 
+        if (constraint.PositionalOverlap(goal))
+            minTime = std::max(minTime, constraint.time.second); 
     }
 
     return minTime; 

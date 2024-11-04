@@ -13,44 +13,44 @@ class CTNode{
 
     public:
 
-        using Coord            = std::pair<size_t, size_t>;                     // alias for a coordinate pair (x, y)
+        using Coord            = std::pair<double, double>;                     // alias for a coordinate pair (x, y)
         using FullConstraint   = std::pair<size_t, ConstraintType>;             // alias for a full constraint consisting of an agent ID and a constraint type
         using PathMap          = std::map<size_t, std::vector<Coord>>;          // alias for a map that tracks agent index to its solution path
-        using ConstraintMap    = std::map<size_t, std::set<ConstraintType>>;    // alias for a map that tracks agents and their applied constraints
+        using ConstraintMap    = std::map<size_t, std::vector<ConstraintType>>;    // alias for a map that tracks agents and their applied constraints
         using NodeReference    = std::vector<std::pair<size_t, size_t>>;        // alias for a vector of pairs representing node references by tree and node index
 
-    public: 
+    public:
 
         PathMap m_paths;                // map storing the paths for each agent
         ConstraintMap m_constraints;    // map storing the constraints for each agent
         NodeReference m_nodeRef;        // vector storing references to other nodes
         size_t m_cost;                  // cost associated with the node
 
-    public: 
-    
+    public:
+
         // Default constructor
         CTNode(){};
 
         // Copy constructor
-        CTNode(const CTNode& _other) : 
-            m_paths(_other.m_paths), 
-            m_constraints(_other.m_constraints), 
+        CTNode(const CTNode& _other) :
+            m_paths(_other.m_paths),
+            m_constraints(_other.m_constraints),
             m_nodeRef(_other.m_nodeRef),
-            m_cost(_other.m_cost) {}; 
+            m_cost(_other.m_cost) {};
 
         // Move constructor
-        CTNode(CTNode&& _other) noexcept: 
-            m_paths(std::move(_other.m_paths)), 
-            m_constraints(std::move(_other.m_constraints)), 
+        CTNode(CTNode&& _other) noexcept:
+            m_paths(std::move(_other.m_paths)),
+            m_constraints(std::move(_other.m_constraints)),
             m_nodeRef(std::move(_other.m_nodeRef)),
-            m_cost(_other.m_cost) {}; 
+            m_cost(_other.m_cost) {};
 
         // Move assignment operator
         CTNode& operator=(CTNode&& _other) noexcept {
             if (this != &_other) {
                 m_paths = std::move(_other.m_paths);
                 m_constraints = std::move(_other.m_constraints);
-                m_nodeRef = std::move(_other.m_nodeRef); 
+                m_nodeRef = std::move(_other.m_nodeRef);
                 m_cost = _other.m_cost;
             }
             return *this;
@@ -58,17 +58,17 @@ class CTNode{
 
         // Constructor combining two CTNode instances
         CTNode(const CTNode& _one, const CTNode& _two) {
-            m_paths = _one.m_paths; 
+            m_paths = _one.m_paths;
             for (const auto& kv : _two.m_paths) {
-                m_paths[kv.first].insert(m_paths[kv.first].end(), kv.second.begin(), kv.second.end()); 
+                m_paths[kv.first].insert(m_paths[kv.first].end(), kv.second.begin(), kv.second.end());
             }
 
-            m_constraints = _one.m_constraints; 
+            m_constraints = _one.m_constraints;
             for (const auto& kv : _two.m_constraints) {
-                m_constraints[kv.first].insert(kv.second.begin(), kv.second.end()); 
+                m_constraints[kv.first].insert(kv.second.begin(), kv.second.end());
             }
 
-            m_cost = _one.m_cost + _two.m_cost; 
+            m_cost = _one.m_cost + _two.m_cost;
         };
 
         // Constructor with paths, constraints, and cost
@@ -103,27 +103,27 @@ class CTNode{
         // Method to expand the condensed representation node by incorporating references from other nodes
         void Expand(const std::map<size_t, std::vector<CTNode<ConstraintType>>*>* _references) {
             if (m_nodeRef.empty())
-                return; 
+                return;
 
-            std::set<ConstraintType> empty; 
-            
+            std::vector<ConstraintType> empty;
+
             for (auto nv : m_nodeRef) {
-                size_t tree = nv.first; 
-                size_t nodeIndex = nv.second; 
+                size_t tree = nv.first;
+                size_t nodeIndex = nv.second;
 
-                const CTNode<ConstraintType>& node = _references->at(tree)->at(nodeIndex); 
+                const CTNode<ConstraintType>& node = _references->at(tree)->at(nodeIndex);
                 for (const auto kv : node.m_paths) {
-                    m_paths.emplace(kv.first, kv.second); 
-                    m_constraints.emplace(kv.first, empty); 
+                    m_paths.emplace(kv.first, kv.second);
+                    m_constraints.emplace(kv.first, empty);
                 }
                 for (const auto kv : node.m_constraints) {
-                    m_constraints.emplace(kv.first, kv.second); 
-                    m_constraints[kv.first] = kv.second; 
+                    m_constraints.emplace(kv.first, kv.second);
+                    m_constraints[kv.first] = kv.second;
                 }
             }
 
-            m_nodeRef.clear(); 
-            return; 
+            m_nodeRef.clear();
+            return;
         }
 };
 

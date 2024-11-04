@@ -2,23 +2,25 @@
 #define DISTANCE_METRICS_H_
 
 #include <cmath> // For std::sqrt
-#include <utility> 
+#include <utility>
 
 // Function to calculate Euclidean distance between two coordinates
+template<typename T>
 inline
-double 
-EuclideanDistance(const std::pair<size_t, size_t>& _start, const std::pair<size_t, size_t>& _goal) {
-    size_t dx = abs(_start.first - _goal.first); 
-    size_t dy = abs(_start.second - _goal.second); 
-    return std::sqrt(static_cast<double>(dx * dx + dy * dy));
+T
+EuclideanDistance(const std::pair<T, T>& _start, const std::pair<T, T>& _goal) {
+    T dx = fabs(_start.first - _goal.first);
+    T dy = fabs(_start.second - _goal.second);
+    return std::sqrt(dx * dx + dy * dy);
 }
 
 // Function to calculate Manhattan distance between two coordinates
+template<typename T>
 inline
-size_t 
-ManhattanDistance(const std::pair<size_t, size_t>& _start, const std::pair<size_t, size_t>& _goal) {
-    size_t dx = abs(_start.first - _goal.first);
-    size_t dy = abs(_start.second - _goal.second); 
+T
+ManhattanDistance(const std::pair<T, T>& _start, const std::pair<T, T>& _goal) {
+    T dx = fabs(_start.first - _goal.first);
+    T dy = fabs(_start.second - _goal.second);
     return dx + dy;
 }
 

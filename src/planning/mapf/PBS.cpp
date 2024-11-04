@@ -36,7 +36,7 @@ Reset(const std::map<size_t, MotionTask>& _tasks, const std::vector<size_t>& _ag
 MultiPathSolution*
 PBS:: 
 Solve(const std::map<size_t, MotionTask>& _tasks, const std::vector<size_t>& _agents){
-    Reset(_tasks, _agents); 
+    Reset(_tasks, _agents);
 
     CTInitialize<PriorityConstraint> initialize = [this]() {
         return this->Initialize(); 
@@ -60,7 +60,7 @@ Solve(const std::map<size_t, MotionTask>& _tasks, const std::vector<size_t>& _ag
     std::chrono::duration<double> time = end - start; 
 
     m_runtime = time.count(); 
-    m_solution = new MultiPathSolution(solutionNode.m_paths, solutionNode.m_cost, m_exploredCount, m_totalCount); 
+    m_solution = new MultiPathSolution(solutionNode.m_paths, solutionNode.m_cost, m_resolution, m_exploredCount, m_totalCount); 
 
     return m_solution;
 }
@@ -75,7 +75,7 @@ Initialize() {
         for (auto agent : m_agents) {
             Coord start = m_tasks[agent].first; 
             Coord goal = m_tasks[agent].second; 
-            std::set<PriorityConstraint> empty;
+            std::vector<PriorityConstraint> empty;
             rootNode.m_constraints[agent] = empty;  
 
             auto [success, path] = LowLevel(agent, rootNode); 
@@ -99,18 +99,16 @@ LowLevel(size_t _agent, const Node& _node){
     Coord goal = m_tasks[_agent].second; 
 
     // Get priority constraints and expand into motion constraints
-    std::set<MotionConstraint> extractedConstraints; 
+    std::vector<SpatialMotionConstraint> extractedConstraints; 
     for (size_t constraintAgent : _node.m_constraints.at(_agent)) {
         const auto& path = _node.m_paths.at(constraintAgent); 
         for (size_t i = 0; i < path.size() - 1; i++) {
-            extractedConstraints.insert(MotionConstraint(path[i], path[i], i, i)); 
-            extractedConstraints.insert(MotionConstraint(path[i], path[i + 1], i, i + 1)); 
+            extractedConstraints.push_back(SpatialMotionConstraint(path[i], path[i], i, i)); 
+            extractedConstraints.push_back(SpatialMotionConstraint(path[i], path[i + 1], i, i + 1)); 
         }
         size_t lastIndex = path.size() - 1; 
-        MotionConstraint lastConstraint(path[lastIndex], path[lastIndex], lastIndex, std::numeric_limits<size_t>::max()); 
-        if (extractedConstraints.find(lastConstraint) != extractedConstraints.end())
-            extractedConstraints.erase(lastConstraint); 
-        extractedConstraints.insert(lastConstraint);
+        SpatialMotionConstraint lastConstraint(path[lastIndex], path[lastIndex], lastIndex, std::numeric_limits<size_t>::max()); 
+        extractedConstraints.push_back(lastConstraint);
     }
 
     // Find minimum end time from the last applied motion constraint
@@ -171,7 +169,7 @@ Validate(const Node& _node) {
                 const Coord& nextB = pathB.at(t2B); 
 
                 // find collision using traditional grid collision check
-                auto [collision, positions, times] = GridCollisionCheck(positionA, nextA, posB, nextB, t); 
+                auto [collision, constraintPositionsA, constraintPositionsB, times] = GridCollisionCheck(positionA, nextA, posB, nextB, t); 
                 if (!collision) 
                     continue; // if no collision is found, continue to the next collision check
                 
@@ -183,8 +181,8 @@ Validate(const Node& _node) {
 
                 if (m_debug) {
                     std::cout << "Collision found between Agent " << agentA << " and " << agentB << "." << std::endl; 
-                    std::cout << "Collision: {" << positions.first.first << ", " << positions.first.second << "}, {" << 
-                                 positions.second.first << ", " << positions.second.second << "}" << 
+                    std::cout << "Collision: {" << constraintPositionsA.first.first << ", " << constraintPositionsA.first.second << "}, {" << 
+                                 constraintPositionsB.second.first << ", " << constraintPositionsB.second.second << "}" << 
                                  " from time [" << times.first << ", " << times.second << "]" << std::endl; 
                     std::cout << "\tConstraint 1: {" << constraintOne.first << ", " << constraintOne.second << "}" << std::endl; 
                     std::cout << "\tConstraint 1: {" << constraintTwo.first << ", " << constraintTwo.second << "}" << std::endl; 
@@ -209,13 +207,14 @@ Split(const Node& _parent, const std::vector<FullConstraint>& _constraints){
     std::vector<Node> children; 
     // safety check - make sure low level pathfinder is adhering to constraints by checking 
     // if any duplicate constraints have been added. 
-    if (_parent.m_constraints.at(agentA).find(constraintA) != _parent.m_constraints.at(agentA).end()) {
-        throw std::runtime_error("Duplicate constraint added to child A"); 
+    for (const auto& constraint : _parent.m_constraints.at(agentA)) {
+        if (constraint == constraintA)
+            throw std::runtime_error("Duplicate constraint added to child A"); 
     }
 
     // create child with new priority constraint
     auto childA(_parent); 
-    childA.m_constraints[agentA].insert(constraintA);
+    childA.m_constraints[agentA].push_back(constraintA);
 
     // check the validity of the child node
     auto validityCheck = CheckConstraintValidity(agentA, childA.m_constraints); 
@@ -239,7 +238,7 @@ Split(const Node& _parent, const std::vector<FullConstraint>& _constraints){
             if (m_debug && validityCheck.first && !PathValidate(childA, agentA)) {
                 std::cout << "Low-level search not adhering to priority constraint error: " << std::endl; 
                 auto debugChild(_parent); 
-                debugChild.m_constraints[agentA].insert(constraintA); 
+                debugChild.m_constraints[agentA].push_back(constraintA); 
                 auto validityCheck = CheckConstraintValidity(agentA, debugChild.m_constraints);
 
                 std::cout << "Replanning Agents: ["; 
@@ -260,14 +259,13 @@ Split(const Node& _parent, const std::vector<FullConstraint>& _constraints){
         }
     }
 
-
-    if (_parent.m_constraints.at(agentB).find(constraintB) != _parent.m_constraints.at(agentB).end()) {
-        throw std::runtime_error("Duplicate constraint added to child B"); 
+    for (const auto& constraint : _parent.m_constraints.at(agentB)) {
+        if (constraint == constraintB)
+            throw std::runtime_error("Duplicate constraint added to child B"); 
     }
-
     // create child with new priority constraint
     auto childB(_parent); 
-    childB.m_constraints[agentB].insert(constraintB); 
+    childB.m_constraints[agentB].push_back(constraintB); 
 
     // check the validity of the child node
     validityCheck = CheckConstraintValidity(agentB, childB.m_constraints); 
@@ -291,7 +289,7 @@ Split(const Node& _parent, const std::vector<FullConstraint>& _constraints){
             if (m_debug && validityCheck.first && !PathValidate(childB, agentB)) {
                 std::cout << "Low-level search not adhering to priority constraint error: " << std::endl; 
                 auto debugChildB(_parent); 
-                debugChildB.m_constraints[agentB].insert(constraintB); 
+                debugChildB.m_constraints[agentB].push_back(constraintB); 
                 auto validityCheck = CheckConstraintValidity(agentB, debugChildB.m_constraints);
 
                 std::cout << "Replanning Agents: ["; 
@@ -317,15 +315,14 @@ Split(const Node& _parent, const std::vector<FullConstraint>& _constraints){
 
 size_t
 PBS:: 
-FindMinimumEndTime(const Coord& _goal, const std::set<MotionConstraint>& _constraints) {
+FindMinimumEndTime(const Coord& _goal, const std::vector<SpatialMotionConstraint>& _constraints) {
     // finds the minimum end time that is passed to the low level pathfinder based on the 
     // applied constraints that affect the agent's goal position
     size_t minTime = 0; 
 
     for (const auto& constraint : _constraints) {
-        if (constraint.pos2 == _goal) {
-            minTime = std::max(minTime, constraint.t2); 
-        }
+        if (constraint.PositionalOverlap(_goal))
+            minTime = std::max(minTime, constraint.time.second); 
     }
 
     return minTime; 
@@ -362,11 +359,14 @@ CheckConstraintValidity(size_t _agent, const ConstraintMap& _constraintMap){
         size_t current = replanList[current_idx]; 
 
         if (replanAgents.find(current) == replanAgents.end()) {
-            for (const auto& [constraint, constraints] : _constraintMap) {
-                if (constraints.find(current) != constraints.end()) {
-                    replanList.push_back(constraint); 
-                    if(replanAgents.find(constraint) != replanAgents.end())
-                        replanAgents.erase(constraint); 
+            for (const auto& [newAgent, constraints] : _constraintMap) {
+                for (const auto& constraint : constraints) {
+                    if (constraint == current) {
+                        replanList.push_back(newAgent); 
+                        if (replanAgents.find(newAgent) != replanAgents.end()) {
+                            replanAgents.erase(newAgent); 
+                        }
+                    }
                 }
             }
             replanAgents.insert(current); 
@@ -450,14 +450,18 @@ PathValidate(const Node& _node, size_t _agent) {
             const Coord& nextA = pathA.at(t2A); 
 
             // check for illegal collision between priority constraint agents and _agent
-            auto [collision, positions, times] = GridCollisionCheck(positionA, nextA, posB, nextB, t); 
+            auto [collision, constraintPositionsA, constraintPositionsB, times] = GridCollisionCheck(positionA, nextA, posB, nextB, t); 
             if (!collision) 
                 continue; 
             
             std::cout << "Collision: " << _agent <<" " << agentA << std::endl;
-            std::cout << times.first << " " << times.second << std::endl;
-            std::cout <<"(" << positions.first.first << ", " << positions.first.second << ")" << std::endl;
-            std::cout <<"(" << positions.second.first << ", " << positions.second.second << ")" << std::endl; 
+            std::cout << "Time:" << times.first << " " << times.second << std::endl;
+            std::cout <<"(" << constraintPositionsA.first.first << ", " << constraintPositionsA.first.second << ")" << std::endl;
+            std::cout <<"(" << constraintPositionsB.second.first << ", " << constraintPositionsB.second.second << ")" << std::endl; \
+            std::cout << "Agent A position: {" << positionA.first << ", " << positionA.second << "} {"
+                      << nextA.first << ", " << nextA.second << "}, len: " << pathA.size() << std::endl;
+            std::cout << "Agent B position: {" << posB.first << ", " << posB.second << "} {"
+                      << nextB.first << ", " << nextB.second << "}, len: " << pathB.size() << std::endl;
 
             return false; // if illegal collision found, return that the pathfinding failed
         }
